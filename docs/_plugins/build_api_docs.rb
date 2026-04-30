@@ -133,7 +133,48 @@ def build_spark_scala_and_java_docs_if_necessary
 
   command = "build/sbt -Pkinesis-asl unidoc"
   puts "Running '#{command}'..."
-  system(command) || raise("Unidoc generation failed")
+
+  # Suppress genjavadoc-stub diagnostic blocks from the visible log. javadoc
+  # emits ~3500 `[error]` lines per unidoc run on stubs under `target/java/`
+  # -- all benign because `--ignore-source-errors` is set, but they bury
+  # everything else. Each diagnostic is a header line followed by 3-5
+  # `[error|warn]`-prefixed continuation lines (snippet, caret,
+  # symbol/location); the state machine drops both.
+  #
+  # Match by *message text*, not just by `target/java/` path. Otherwise
+  # legitimate doclint diagnostics on stub paths would be hidden too --
+  # those messages are real signal. The patterns below are the known-benign
+  # genjavadoc structural errors; anything else on a `target/java/` path is
+  # echoed. Diagnostic mirror lines from `SparkUnidocDoclet` use the
+  # `[unidoc-doclet]` prefix and don't match either regex, so they always
+  # pass through.
+  ansi = /\e\[[0-9;]*[A-Za-z]/
+  stub_header = %r{
+    \[(?:error|warn)\]\s+
+    \S*?/target/java/\S+\.java:\d+(?::\d+)?:\s+
+    error:\s+
+    (?:cannot\s+find\s+symbol
+     |illegal\s+combination\s+of\s+modifiers
+     |non-static\s+type\s+variable\b
+     |.*?\s+is\s+not\s+public\s+in\s+\S+;\s+cannot\s+be\s+accessed\s+from\s+outside\s+package)
+  }x
+  stub_cont = %r{\A\s*\[(?:error|warn)\]\s+(?!/\S+\.java:\d+(?::\d+)?:\s)}
+  in_stub = false
+  IO.popen("#{command} 2>&1", 'r') do |pipe|
+    pipe.each_line do |line|
+      plain = line.gsub(ansi, '')
+      if plain =~ stub_header
+        in_stub = true
+      elsif in_stub && plain =~ stub_cont
+        # continuation of a stub block; suppress
+      else
+        in_stub = false
+        $stdout.write(line)
+        $stdout.flush
+      end
+    end
+  end
+  raise("Unidoc generation failed") unless $?.success?
 end
 
 def build_scala_and_java_docs

@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.udf.worker
 
-import org.apache.spark.annotation.Experimental
+package org.apache.spark.sql.connector
 
-/**
- * :: Experimental ::
- * Typed Scala wrapper around the protobuf [[UDFWorkerSpecification]].
- */
-@Experimental
-class WorkerSpecification(val proto: UDFWorkerSpecification) {
+class GroupBasedNoMetadataMergeIntoTableSuite extends MergeIntoTableSuiteBase {
+
+  override protected def extraTableProps: java.util.Map[String, String] = {
+    val props = new java.util.HashMap[String, String]()
+    props.put("no-metadata", "true")
+    props
+  }
 }

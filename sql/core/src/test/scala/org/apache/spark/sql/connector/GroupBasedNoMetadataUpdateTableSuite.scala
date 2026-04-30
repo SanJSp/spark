@@ -14,12 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.udf.worker.core
 
-import org.scalatest.funsuite.AnyFunSuite // scalastyle:ignore funsuite
+package org.apache.spark.sql.connector
 
-class WorkerAbstractionSuite
-    extends AnyFunSuite { // scalastyle:ignore funsuite
+class GroupBasedNoMetadataUpdateTableSuite extends UpdateTableSuiteBase {
 
-  test("dummy") {}
+  override protected def extraTableProps: java.util.Map[String, String] = {
+    val props = new java.util.HashMap[String, String]()
+    props.put("no-metadata", "true")
+    props
+  }
 }
